@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Waypoint — Logistics &amp; Delivery Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #F4F5F7;
+    --surface: #FFFFFF;
+    --ink: #12172B;
+    --ink-soft: #4A5169;
+    --line: #DADDE3;
+    --accent: #2C5AA0;
+    --accent-soft: #E7EEF7;
+    --gold: #B8863F;
+    --gold-soft: #FBF0DE;
+    --green: #2E7D5B;
+    --green-soft: #E6F2EC;
+    --red: #B23A3A;
+    --red-soft: #FBEAEA;
+    --radius: 3px;
+    --sidebar-w: 200px;
+    --topbar-h: 60px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:'IBM Plex Sans', system-ui, sans-serif; font-size:15px; line-height:1.55;
+  }
+  h1,h2,h3{font-family:'Space Grotesk', system-ui, sans-serif; font-weight:600; margin:0; color:var(--ink);}
+  .mono{font-family:'IBM Plex Mono', monospace;}
+  a{color:inherit;}
+  button{font-family:inherit; cursor:pointer;}
+  a:focus-visible, button:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+
+  .demo-banner{
+    background:var(--ink); color:#fff; font-size:0.82rem;
+    padding:8px 20px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;
+  }
+  .demo-banner a{color:#fff; text-decoration:underline; text-underline-offset:2px;}
+
+  .topbar{
+    height:var(--topbar-h); background:var(--surface); border-bottom:1px solid var(--line);
+    display:flex; align-items:center; justify-content:space-between; padding:0 20px;
+    position:sticky; top:0; z-index:20; flex-wrap:wrap; gap:10px;
+  }
+  .app-name{font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:1.02rem; display:flex; align-items:center; gap:8px;}
+  .app-name .dot{width:8px; height:8px; background:var(--accent); border-radius:1px; display:inline-block;}
+  .topbar-right{display:flex; align-items:center; gap:14px;}
+
+  .live-indicator{display:flex; align-items:center; gap:7px; font-size:0.82rem; color:var(--ink-soft);}
+  .live-dot{width:8px; height:8px; border-radius:50%; background:var(--green); animation:pulse 1.8s ease-in-out infinite;}
+  .live-dot.paused{background:var(--ink-soft); animation:none;}
+  @keyframes pulse{
+    0%,100%{opacity:1; box-shadow:0 0 0 0 rgba(46,125,91,0.35);}
+    50%{opacity:0.6; box-shadow:0 0 0 5px rgba(46,125,91,0);}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .live-dot{animation:none;}
+  }
+
+  .shell{display:flex; min-height:calc(100vh - var(--topbar-h) - 37px);}
+  .sidebar{width:var(--sidebar-w); flex-shrink:0; background:var(--surface); border-right:1px solid var(--line); padding:20px 0;}
+  .nav-group-label{font-family:'IBM Plex Mono', monospace; font-size:0.72rem; color:var(--ink-soft); padding:0 20px 8px;}
+  .nav-item{
+    display:flex; align-items:center; gap:10px; padding:10px 20px; font-size:0.9rem; color:var(--ink-soft);
+    border-left:2px solid transparent; cursor:pointer; transition:background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+  .nav-item:hover{background:var(--bg); color:var(--ink);}
+  .nav-item.active{color:var(--accent); border-left-color:var(--accent); background:var(--accent-soft); font-weight:500;}
+
+  .main{flex-grow:1; padding:32px 36px; max-width:1080px;}
+  .view-head{display:flex; align-items:baseline; justify-content:space-between; gap:16px; margin-bottom:6px; flex-wrap:wrap;}
+  .view-head h1{font-size:1.5rem; letter-spacing:-0.01em;}
+  .view-sub{color:var(--ink-soft); font-size:0.9rem; margin-bottom:28px;}
+
+  .stat-row{display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--line); border:1px solid var(--line); margin-bottom:32px;}
+  .stat{background:var(--surface); padding:18px 20px;}
+  .stat .k{font-size:0.78rem; color:var(--ink-soft); margin-bottom:8px;}
+  .stat .v{font-family:'Space Grotesk',sans-serif; font-size:1.5rem; font-weight:600;}
+  .stat .v.accent{color:var(--accent);}
+  .stat .v.amber{color:var(--gold);}
+  .stat .v.green{color:var(--green);}
+
+  table{width:100%; border-collapse:collapse; background:var(--surface); border:1px solid var(--line);}
+  th, td{text-align:left; padding:12px 14px; font-size:0.88rem; border-bottom:1px solid var(--line);}
+  th{font-family:'IBM Plex Mono', monospace; font-size:0.72rem; color:var(--ink-soft); font-weight:500; background:var(--bg);}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:var(--accent-soft);}
+  td.num, th.num{font-family:'IBM Plex Mono', monospace; text-align:right;}
+
+  .pill{display:inline-block; font-size:0.76rem; font-family:'IBM Plex Mono', monospace; padding:3px 9px; border-radius:var(--radius);}
+  .pill.dispatched{background:var(--bg); color:var(--ink-soft); border:1px solid var(--line);}
+  .pill.intransit{background:var(--accent-soft); color:var(--accent);}
+  .pill.outfordelivery{background:var(--gold-soft); color:var(--gold);}
+  .pill.delivered{background:var(--green-soft); color:var(--green);}
+  .pill.delayed{background:var(--red-soft); color:var(--red);}
+  .pill.available{background:var(--green-soft); color:var(--green);}
+  .pill.enroute{background:var(--accent-soft); color:var(--accent);}
+  .pill.onbreak{background:var(--gold-soft); color:var(--gold);}
+
+  .toolbar{display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap;}
+  .toolbar input{font-size:0.86rem; padding:8px 12px; border:1px solid var(--line); border-radius:var(--radius); background:var(--surface); min-width:220px;}
+  .btn-sm{font-size:0.78rem; padding:5px 11px; border-radius:var(--radius); border:1px solid var(--line); background:var(--surface); color:var(--ink);}
+  .btn-sm:hover{border-color:var(--accent); color:var(--accent);}
+
+  .empty-note{color:var(--ink-soft); font-size:0.88rem; padding:14px 4px;}
+
+  /* ---------- Route tracker ---------- */
+  .route-card{background:var(--surface); border:1px solid var(--line); padding:16px 18px; margin-bottom:12px;}
+  .route-top{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px; flex-wrap:wrap; gap:8px;}
+  .route-top .id{font-family:'IBM Plex Mono', monospace; font-size:0.8rem; color:var(--ink-soft);}
+  .route-top .dest{font-weight:500;}
+  .route-track{position:relative; height:4px; background:var(--line); border-radius:2px; margin:18px 4px 10px;}
+  .route-track .fill{position:absolute; left:0; top:0; height:100%; background:var(--accent); border-radius:2px; transition:width 0.6s ease;}
+  .route-track .marker{
+    position:absolute; top:50%; width:12px; height:12px; border-radius:50%;
+    background:var(--accent); border:2px solid var(--surface); box-shadow:0 0 0 1px var(--accent);
+    transform:translate(-50%, -50%); transition:left 0.6s ease;
+  }
+  .route-labels{display:flex; justify-content:space-between; font-size:0.72rem; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;}
+  .route-meta{display:flex; justify-content:space-between; margin-top:12px; font-size:0.84rem; color:var(--ink-soft); flex-wrap:wrap; gap:8px;}
+
+  /* ---------- Notifications feed ---------- */
+  .feed-item{display:flex; gap:14px; padding:14px 0; border-bottom:1px solid var(--line);}
+  .feed-item:last-child{border-bottom:none;}
+  .feed-time{font-family:'IBM Plex Mono', monospace; font-size:0.76rem; color:var(--ink-soft); flex-shrink:0; width:64px;}
+  .feed-msg{font-size:0.9rem;}
+  .feed-new{animation:flashIn 1.2s ease-out;}
+  @keyframes flashIn{
+    from{background:var(--accent-soft);}
+    to{background:transparent;}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .feed-new{animation:none;}
+  }
+
+  @media (max-width: 780px){
+    .shell{flex-direction:column;}
+    .sidebar{width:100%; border-right:none; border-bottom:1px solid var(--line); display:flex; overflow-x:auto; padding:8px 0;}
+    .nav-group-label{display:none;}
+    .nav-item{border-left:none; border-bottom:2px solid transparent; white-space:nowrap;}
+    .nav-item.active{border-left:none; border-bottom-color:var(--accent);}
+    .main{padding:24px 18px;}
+    .stat-row{grid-template-columns:repeat(2,1fr);}
+    table{display:block; overflow-x:auto;}
+  }
+</style>
+</head>
+<body>
+
+<div class="demo-banner">
+  <span>Demo build for the <strong>Real-Time Logistics &amp; Delivery Management Platform</strong> project — orders and driver status update automatically to simulate live tracking.</span>
+  <a href="portfolio.html">← Back to portfolio</a>
+</div>
+
+<div class="topbar">
+  <div class="app-name"><span class="dot"></span> Waypoint</div>
+  <div class="topbar-right">
+    <div class="live-indicator"><span class="live-dot" id="liveDot"></span><span id="liveLabel">Live</span></div>
+    <button class="btn-sm" id="pauseBtn">Pause updates</button>
+  </div>
+</div>
+
+<div class="shell">
+  <nav class="sidebar" id="sidebar"></nav>
+  <main class="main" id="main"></main>
+</div>
+
+<script>
+(function(){
+
+  /* ---------------- Mock data ---------------- */
+
+  var orders = [
+    {id:'ORD-3001', customer:'Bea Fontanilla', dest:'Lahug, Cebu City', status:'Delivered', progress:100, driver:'Jun Manalo'},
+    {id:'ORD-3002', customer:'Renz Alcantara', dest:'Mandaue City', status:'Out for Delivery', progress:75, driver:'Ana Reburiano'},
+    {id:'ORD-3003', customer:'Sheila Domingo', dest:'Talisay City', status:'In Transit', progress:40, driver:'Carlo Estrada'},
+    {id:'ORD-3004', customer:'Miguel Bataller', dest:'Lapu-Lapu City', status:'In Transit', progress:20, driver:'Divine Pableo'},
+    {id:'ORD-3005', customer:'Katrina Osorio', dest:'Consolacion', status:'Dispatched', progress:0, driver:null},
+    {id:'ORD-3006', customer:'Paolo Nierras', dest:'Minglanilla', status:'Dispatched', progress:0, driver:null},
+    {id:'ORD-3007', customer:'Grace Yba\u00f1ez', dest:'Naga City, Cebu', status:'Delayed', progress:30, driver:'Ronnie Cabahug'},
+    {id:'ORD-3008', customer:'Anton Villaruel', dest:'Toledo City', status:'Delivered', progress:100, driver:'Ana Reburiano'},
+    {id:'ORD-3009', customer:'Cristy Almirante', dest:'Cebu Business Park', status:'Out for Delivery', progress:85, driver:'Faith Lumayno'},
+    {id:'ORD-3010', customer:'Wendell Sagario', dest:'Talamban, Cebu City', status:'Dispatched', progress:0, driver:null}
+  ];
+
+  var drivers = [
+    {name:'Jun Manalo', vehicle:'Motorcycle', status:'Available'},
+    {name:'Ana Reburiano', vehicle:'Van', status:'En Route'},
+    {name:'Carlo Estrada', vehicle:'Motorcycle', status:'En Route'},
+    {name:'Divine Pableo', vehicle:'Van', status:'En Route'},
+    {name:'Ronnie Cabahug', vehicle:'Truck', status:'On Break'},
+    {name:'Faith Lumayno', vehicle:'Motorcycle', status:'En Route'}
+  ];
+
+  var notifications = [
+    {time:'09:41', msg:'Order ORD-3009 is out for delivery to Cristy Almirante.'},
+    {time:'09:33', msg:'Order ORD-3002 is out for delivery to Renz Alcantara.'},
+    {time:'09:20', msg:'Order ORD-3008 delivered to Anton Villaruel, Toledo City.'},
+    {time:'09:12', msg:'Order ORD-3001 delivered to Bea Fontanilla, Lahug.'},
+    {time:'09:05', msg:'Driver Ronnie Cabahug on break \u2014 Order ORD-3007 flagged as delayed.'}
+  ];
+
+  var state = { view:'dashboard', paused:false };
+  var newFeedIds = {};
+
+  var navItems = [
+    {id:'dashboard', label:'Dashboard'},
+    {id:'orders', label:'Orders'},
+    {id:'drivers', label:'Drivers'},
+    {id:'tracking', label:'Live Tracking'},
+    {id:'notifications', label:'Notifications'}
+  ];
+
+  /* ---------------- Helpers ---------------- */
+
+  function slug(s){ return s.toLowerCase().replace(/\s|-/g, ''); }
+  function driverBy(name){ return drivers.filter(function(d){ return d.name === name; })[0]; }
+  function nowLabel(){
+    var d = new Date();
+    var h = d.getHours(), m = d.getMinutes();
+    return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
+  }
+  function pushNotification(msg){
+    notifications.unshift({time: nowLabel(), msg: msg, fresh:true});
+    if(notifications.length > 30) notifications.pop();
+  }
+
+  /* ---------------- Live simulation ---------------- */
+
+  function tick(){
+    if(state.paused) return;
+
+    // Occasionally bring a break-delayed driver back
+    drivers.forEach(function(d){
+      if(d.status === 'On Break' && Math.random() < 0.3){
+        d.status = 'En Route';
+        var relatedOrder = orders.filter(function(o){ return o.driver === d.name && o.status === 'Delayed'; })[0];
+        if(relatedOrder){
+          relatedOrder.status = 'In Transit';
+          pushNotification('Driver ' + d.name + ' is back en route \u2014 Order ' + relatedOrder.id + ' resumed.');
+        }
+      }
+    });
+
+    // Advance active orders
+    orders.forEach(function(o){
+      if(o.status === 'In Transit' || o.status === 'Out for Delivery'){
+        o.progress = Math.min(100, o.progress + 8 + Math.floor(Math.random() * 15));
+        if(o.status === 'In Transit' && o.progress >= 55){
+          o.status = 'Out for Delivery';
+          pushNotification('Order ' + o.id + ' is out for delivery to ' + o.customer + '.');
+        }
+        if(o.progress >= 100){
+          o.status = 'Delivered';
+          pushNotification('Order ' + o.id + ' delivered to ' + o.customer + ', ' + o.dest + '.');
+          var d = driverBy(o.driver);
+          if(d) d.status = 'Available';
+        }
+      }
+    });
+
+    // Dispatch a waiting order to a free driver
+    if(Math.random() < 0.5){
+      var pending = orders.filter(function(o){ return o.status === 'Dispatched'; })[0];
+      var free = drivers.filter(function(d){ return d.status === 'Available'; })[0];
+      if(pending && free){
+        pending.status = 'In Transit';
+        pending.progress = 5;
+        pending.driver = free.name;
+        free.status = 'En Route';
+        pushNotification('Order ' + pending.id + ' picked up by ' + free.name + ' \u2014 in transit to ' + pending.dest + '.');
+      }
+    }
+
+    render();
+  }
+
+  var timer = setInterval(tick, 4000);
+
+  document.getElementById('pauseBtn').addEventListener('click', function(){
+    state.paused = !state.paused;
+    document.getElementById('liveDot').classList.toggle('paused', state.paused);
+    document.getElementById('liveLabel').textContent = state.paused ? 'Paused' : 'Live';
+    this.textContent = state.paused ? 'Resume updates' : 'Pause updates';
+  });
+
+  /* ---------------- Renderers ---------------- */
+
+  function renderSidebar(){
+    var html = '<div class="nav-group-label">Menu</div>';
+    navItems.forEach(function(item){
+      var active = item.id === state.view ? ' active' : '';
+      html += '<div class="nav-item' + active + '" data-view="' + item.id + '">' + item.label + '</div>';
+    });
+    document.getElementById('sidebar').innerHTML = html;
+    document.querySelectorAll('.nav-item').forEach(function(el){
+      el.addEventListener('click', function(){ state.view = el.getAttribute('data-view'); render(); });
+    });
+  }
+
+  function statCard(k, v, cls){
+    return '<div class="stat"><div class="k">' + k + '</div><div class="v' + (cls ? ' ' + cls : '') + '">' + v + '</div></div>';
+  }
+
+  function renderDashboard(){
+    var active = orders.filter(function(o){ return o.status === 'In Transit' || o.status === 'Out for Delivery'; }).length;
+    var onRoute = drivers.filter(function(d){ return d.status === 'En Route'; }).length;
+    var delayed = orders.filter(function(o){ return o.status === 'Delayed'; }).length;
+    var delivered = orders.filter(function(o){ return o.status === 'Delivered'; }).length;
+
+    var html = '<div class="view-head"><h1>Dashboard</h1></div>';
+    html += '<p class="view-sub">Live operations overview \u2014 updates automatically as orders move.</p>';
+    html += '<div class="stat-row">';
+    html += statCard('Active deliveries', active, 'accent');
+    html += statCard('Drivers on route', onRoute, 'accent');
+    html += statCard('Delayed orders', delayed, delayed > 0 ? 'amber' : '');
+    html += statCard('Delivered today', delivered, 'green');
+    html += '</div>';
+
+    html += '<h2 style="font-size:1.05rem; margin-bottom:12px;">Latest activity</h2>';
+    html += renderFeedList(notifications.slice(0,5));
+    document.getElementById('main').innerHTML = html;
+  }
+
+  function renderOrders(){
+    var html = '<div class="view-head"><h1>Orders</h1></div>';
+    html += '<p class="view-sub">' + orders.length + ' orders from warehouse dispatch through delivery.</p>';
+    html += '<div class="toolbar"><input type="text" id="orderSearch" placeholder="Search by order ID, customer, or destination\u2026"></div>';
+    html += '<table><thead><tr><th>Order</th><th>Customer</th><th>Destination</th><th>Driver</th><th class="num">Progress</th><th>Status</th></tr></thead><tbody id="orderRows"></tbody></table>';
+    document.getElementById('main').innerHTML = html;
+    renderOrderRows('');
+    document.getElementById('orderSearch').addEventListener('input', function(e){ renderOrderRows(e.target.value.toLowerCase()); });
+  }
+
+  function renderOrderRows(query){
+    var rows = orders.filter(function(o){
+      return !query || o.id.toLowerCase().indexOf(query) > -1 || o.customer.toLowerCase().indexOf(query) > -1 || o.dest.toLowerCase().indexOf(query) > -1;
+    }).map(function(o){
+      return '<tr><td class="mono">' + o.id + '</td><td>' + o.customer + '</td><td>' + o.dest + '</td><td>' + (o.driver || '\u2014') + '</td>' +
+        '<td class="num mono">' + o.progress + '%</td><td><span class="pill ' + slug(o.status) + '">' + o.status + '</span></td></tr>';
+    }).join('');
+    document.getElementById('orderRows').innerHTML = rows || '<tr><td colspan="6" class="empty-note">No orders match that search.</td></tr>';
+  }
+
+  function renderDrivers(){
+    var html = '<div class="view-head"><h1>Drivers</h1></div>';
+    html += '<p class="view-sub">' + drivers.length + ' drivers currently on shift.</p>';
+    html += '<table><thead><tr><th>Driver</th><th>Vehicle</th><th>Current order</th><th>Status</th></tr></thead><tbody>';
+    drivers.forEach(function(d){
+      var current = orders.filter(function(o){ return o.driver === d.name && (o.status === 'In Transit' || o.status === 'Out for Delivery' || o.status === 'Delayed'); })[0];
+      html += '<tr><td>' + d.name + '</td><td>' + d.vehicle + '</td><td>' + (current ? current.id + ' \u2192 ' + current.dest : '\u2014') + '</td>' +
+        '<td><span class="pill ' + slug(d.status) + '">' + d.status + '</span></td></tr>';
+    });
+    html += '</tbody></table>';
+    document.getElementById('main').innerHTML = html;
+  }
+
+  function renderTracking(){
+    var active = orders.filter(function(o){ return o.status === 'In Transit' || o.status === 'Out for Delivery' || o.status === 'Delayed'; });
+    var html = '<div class="view-head"><h1>Live Tracking</h1></div>';
+    html += '<p class="view-sub">' + active.length + ' deliveries currently in motion, updating automatically.</p>';
+    if(active.length === 0){
+      html += '<p class="empty-note">No deliveries in motion right now.</p>';
+    }
+    active.forEach(function(o){
+      html += '<div class="route-card"><div class="route-top"><span class="id">' + o.id + '</span><span class="dest">' + o.dest + '</span>' +
+        '<span class="pill ' + slug(o.status) + '">' + o.status + '</span></div>';
+      html += '<div class="route-track"><div class="fill" style="width:' + o.progress + '%"></div><div class="marker" style="left:' + o.progress + '%"></div></div>';
+      html += '<div class="route-labels"><span>Warehouse</span><span>' + o.customer + '</span></div>';
+      html += '<div class="route-meta"><span>Driver: ' + (o.driver || '\u2014') + '</span><span>' + o.progress + '% complete</span></div>';
+      html += '</div>';
+    });
+    document.getElementById('main').innerHTML = html;
+  }
+
+  function renderFeedList(items){
+    if(items.length === 0) return '<p class="empty-note">No activity yet.</p>';
+    return items.map(function(n){
+      var cls = n.fresh ? ' feed-new' : '';
+      return '<div class="feed-item' + cls + '"><span class="feed-time">' + n.time + '</span><span class="feed-msg">' + n.msg + '</span></div>';
+    }).join('');
+  }
+
+  function renderNotifications(){
+    var html = '<div class="view-head"><h1>Notifications</h1></div>';
+    html += '<p class="view-sub">Automated customer &amp; ops notifications, most recent first.</p>';
+    html += '<div style="background:var(--surface); border:1px solid var(--line); padding:4px 18px;">' + renderFeedList(notifications) + '</div>';
+    document.getElementById('main').innerHTML = html;
+  }
+
+  var viewRenderers = {
+    dashboard: renderDashboard,
+    orders: renderOrders,
+    drivers: renderDrivers,
+    tracking: renderTracking,
+    notifications: renderNotifications
+  };
+
+  function render(){
+    renderSidebar();
+    viewRenderers[state.view]();
+    notifications.forEach(function(n){ n.fresh = false; });
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>
